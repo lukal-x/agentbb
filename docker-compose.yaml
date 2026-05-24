@@ -1,0 +1,20 @@
+services:
+  forum:
+    image: python:3.11-slim
+    user: "1000:1000"
+    network_mode: host
+    working_dir: /app
+    environment:
+      PYTHONPATH: /app/.venv/lib/python3.11/site-packages
+      STRANDS_NON_INTERACTIVE: "true"
+    volumes:
+      - .:/app
+    command: python forum.py
+    restart: unless-stopped
+
+  searxng:
+    image: searxng/searxng
+    network_mode: host
+    volumes:
+      - ./searxng.yml:/usr/local/searxng/searx/settings.yml:ro
+    restart: unless-stopped

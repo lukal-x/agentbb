@@ -1,4 +1,12 @@
-from flask import Blueprint, Flask, render_template_string, request, redirect, session, url_for
+from flask import (
+    Blueprint,
+    Flask,
+    render_template_string,
+    request,
+    redirect,
+    session,
+    url_for,
+)
 from flask.views import MethodView
 import hashlib
 import os
@@ -15,10 +23,10 @@ import ollama
 import urllib.parse
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'dev')
+app.secret_key = os.environ.get("SECRET_KEY", "dev")
 forum = Blueprint("forum", __name__)
 bbcoded = bbcode.Parser()
-DATABASE = 'forum.db'
+DATABASE = "forum.db"
 PAGE_SIZE = 20
 AGENT_MAX_WORKERS = 1
 AGENT_SYSTEM_PROMPT = "You are AgentBB, an agentic forum bot. You use strands-agents and available tools to participate in discussions and address topics asked of you to address. Your primary goal is to ask clarifying questions until you are able to respond with useful information."
@@ -26,16 +34,14 @@ FORUM_FORMATTER_PROMPT = """Translate the input (an AI agent's markdown reply) a
 Use BBCode ([b], [i], [code], [url=...], [list][*]); no markdown, no headings, no tables, no unnecessary lists.
 Output only the rewritten post."""
 
-USERS = {
-    "admin": "admin123",
-    "alice": "alice123",
-    "bob": "bob123"
-}
+USERS = {"admin": "admin123", "alice": "alice123", "bob": "bob123"}
 
 _MAX_ID = 2**63 - 1
 
-app.jinja_env.filters['bbcode'] = bbcoded.format
-app.jinja_env.filters['usercolor'] = lambda u: hashlib.md5((u or '').encode()).hexdigest()[:6]
+app.jinja_env.filters["bbcode"] = bbcoded.format
+app.jinja_env.filters["usercolor"] = lambda u: hashlib.md5(
+    (u or "").encode()
+).hexdigest()[:6]
 
 
 @tool
@@ -86,6 +92,7 @@ a:hover { color: var(--link-hover); }
 .post { padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: pre-wrap; }
 .post:nth-child(even) { background: var(--row-alt); }
 .post:last-child { border-bottom: none; }
+.post:target { border: 1px solid #aaa; }
 .post-meta { font-size: 10px; color: var(--muted); margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px dashed var(--border); }
 .tag { display: inline-block; padding: 1px 5px; font-size: 10px; font-weight: bold; color: #fff; text-transform: uppercase; }
 .tag-agent { background: var(--tag-agent); }
@@ -106,26 +113,32 @@ button:active { border-style: inset; }
 .pagination { padding: 8px 0; text-align: center; }
 """
 
-_PAGE_HEAD_TPL = ("""<!DOCTYPE html>
+_PAGE_HEAD_TPL = (
+    """<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>__TITLE__</title>
-<style>""" + STYLES + """</style>
+<style>"""
+    + STYLES
+    + """</style>
 </head>
 <body><div class="wrap">
 <header class="site-header">
   <div class="user-info">
-    {% if current_user %}Logged in as <b>{{ current_user }}</b> &middot; <a href="{{ url_for('forum.logout') }}">logout</a>{% else %}<a href="{{ url_for('forum.login') }}">login</a>{% endif %}
+    {% if current_user %}Logged in as <b>{{ current_user }}</b> {% if unread_count %} <a class="badge" href="{{ url_for("forum.notifications") }}">({{ unread_count }})</a> {% endif %} &middot; <a href="{{ url_for('forum.logout') }}">logout</a>{% else %}<a href="{{ url_for('forum.login') }}">login</a>{% endif %}
   </div>
   <h1><a href="{{ url_for('forum.index') }}">AI-Powered Forum</a></h1>
 </header>
-""")
+"""
+)
 
 _PAGE_FOOT = "</div></body></html>"
 
-LOGIN_HTML = _PAGE_HEAD_TPL.replace("__TITLE__", "Log in") + """
+LOGIN_HTML = (
+    _PAGE_HEAD_TPL.replace("__TITLE__", "Log in")
+    + """
 <div class="panel">
   <div class="panel-header">Log in</div>
   <form class="bodyform" method="POST">
@@ -144,9 +157,13 @@ LOGIN_HTML = _PAGE_HEAD_TPL.replace("__TITLE__", "Log in") + """
     </div>
   </form>
 </div>
-""" + _PAGE_FOOT
+"""
+    + _PAGE_FOOT
+)
 
-INDEX_HTML = _PAGE_HEAD_TPL.replace("__TITLE__", "AI-Powered Forum") + """
+INDEX_HTML = (
+    _PAGE_HEAD_TPL.replace("__TITLE__", "AI-Powered Forum")
+    + """
 <p class="nav-links"><a href="{{ url_for('forum.create') }}">New Thread</a></p>
 <div class="panel">
   <div class="panel-header">Threads</div>
@@ -165,9 +182,13 @@ INDEX_HTML = _PAGE_HEAD_TPL.replace("__TITLE__", "AI-Powered Forum") + """
   {% if has_next %}<a href="{{ url_for('forum.index', page=page+1) }}">Next &raquo;</a>{% endif %}
 </div>
 {% endif %}
-""" + _PAGE_FOOT
+"""
+    + _PAGE_FOOT
+)
 
-THREAD_HTML = _PAGE_HEAD_TPL.replace("__TITLE__", "{{ thread.title }}") + """
+THREAD_HTML = (
+    _PAGE_HEAD_TPL.replace("__TITLE__", "{{ thread.title }}")
+    + """
 <p class="nav-links"><a href="{{ url_for('forum.index') }}">&laquo; Index</a></p>
 <div class="panel">
   <div class="panel-header">{{ thread.title }}</div>
@@ -209,9 +230,13 @@ THREAD_HTML = _PAGE_HEAD_TPL.replace("__TITLE__", "{{ thread.title }}") + """
     </div>
   </form>
 </div>
-""" + _PAGE_FOOT
+"""
+    + _PAGE_FOOT
+)
 
-EDIT_THREAD_HTML = _PAGE_HEAD_TPL.replace("__TITLE__", "Edit Thread") + """
+EDIT_THREAD_HTML = (
+    _PAGE_HEAD_TPL.replace("__TITLE__", "Edit Thread")
+    + """
 <p class="nav-links"><a href="{{ url_for('forum.thread', thread_id=thread.id) }}">&laquo; Back to thread</a></p>
 <div class="panel">
   <div class="panel-header">Edit Thread (changing the content discards all replies and triggers a new agent reply)</div>
@@ -229,9 +254,13 @@ EDIT_THREAD_HTML = _PAGE_HEAD_TPL.replace("__TITLE__", "Edit Thread") + """
     </div>
   </form>
 </div>
-""" + _PAGE_FOOT
+"""
+    + _PAGE_FOOT
+)
 
-EDIT_HTML = _PAGE_HEAD_TPL.replace("__TITLE__", "Edit Post") + """
+EDIT_HTML = (
+    _PAGE_HEAD_TPL.replace("__TITLE__", "Edit Post")
+    + """
 <p class="nav-links"><a href="{{ url_for('forum.thread', thread_id=thread_id) }}">&laquo; Back to thread</a></p>
 <div class="panel">
   <div class="panel-header">Edit Post (saving will discard all later posts and trigger a new agent reply)</div>
@@ -244,9 +273,13 @@ EDIT_HTML = _PAGE_HEAD_TPL.replace("__TITLE__", "Edit Post") + """
     </div>
   </form>
 </div>
-""" + _PAGE_FOOT
+"""
+    + _PAGE_FOOT
+)
 
-CREATE_HTML = _PAGE_HEAD_TPL.replace("__TITLE__", "New Thread") + """
+CREATE_HTML = (
+    _PAGE_HEAD_TPL.replace("__TITLE__", "New Thread")
+    + """
 <p class="nav-links"><a href="{{ url_for('forum.index') }}">&laquo; Index</a></p>
 <div class="panel">
   <div class="panel-header">New Thread</div>
@@ -265,8 +298,24 @@ CREATE_HTML = _PAGE_HEAD_TPL.replace("__TITLE__", "New Thread") + """
     </div>
   </form>
 </div>
-""" + _PAGE_FOOT
+"""
+    + _PAGE_FOOT
+)
 
+NOTIFICATIONS_HTML = (
+    _PAGE_HEAD_TPL.replace("__TITLE__", "AI-Powered Forum - Notifications")
+    + """
+    <h1>Notifications</h1>
+    <hr>
+    <ul>
+    {% for row in rows %}
+      <li><a href="{{ url_for("forum.thread", thread_id=row.thread_id) }}#p-{{ row.id }}">{{ row.thread_id }}-{{ row.id }}</a></li>
+    {% endfor %}
+    </ul>
+    """
+    + _PAGE_FOOT
+
+)
 
 def get_db():
     db = sqlite3.connect(DATABASE)
@@ -276,14 +325,17 @@ def get_db():
 
 def init_db():
     with sqlite3.connect(DATABASE) as conn:
-        conn.execute('''
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS threads (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 title TEXT NOT NULL,
                 content TEXT NOT NULL
             )
-        ''')
-        conn.execute('''
+        """
+        )
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS posts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 thread_id INTEGER,
@@ -291,16 +343,27 @@ def init_db():
                 is_agent BOOLEAN DEFAULT 0,
                 FOREIGN KEY(thread_id) REFERENCES threads(id)
             )
-        ''')
+        """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS notifications(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                post_id INTEGER NOT NULL,
+                UNIQUE(user_id, post_id)
+            );
+        """
+        )
         cols = {row[1] for row in conn.execute("PRAGMA table_info(posts)")}
-        if 'is_agent' not in cols:
+        if "is_agent" not in cols:
             conn.execute("ALTER TABLE posts ADD COLUMN is_agent BOOLEAN DEFAULT 0")
-        if 'pending' not in cols:
+        if "pending" not in cols:
             conn.execute("ALTER TABLE posts ADD COLUMN pending BOOLEAN DEFAULT 0")
-        if 'author' not in cols:
+        if "author" not in cols:
             conn.execute("ALTER TABLE posts ADD COLUMN author TEXT")
         thread_cols = {row[1] for row in conn.execute("PRAGMA table_info(threads)")}
-        if 'author' not in thread_cols:
+        if "author" not in thread_cols:
             conn.execute("ALTER TABLE threads ADD COLUMN author TEXT")
 
 
@@ -333,10 +396,10 @@ class AgentBB:
         conn.row_factory = sqlite3.Row
         try:
             thread_row = conn.execute(
-                'SELECT content, author FROM threads WHERE id = ?', (thread_id,)
+                "SELECT content, author FROM threads WHERE id = ?", (thread_id,)
             ).fetchone()
             post_rows = conn.execute(
-                'SELECT content, is_agent, author FROM posts WHERE thread_id = ? AND id < ? ORDER BY id',
+                "SELECT content, is_agent, author FROM posts WHERE thread_id = ? AND id < ? ORDER BY id",
                 (thread_id, before_post_id),
             ).fetchall()
         finally:
@@ -344,7 +407,9 @@ class AgentBB:
 
         raw = []
         if thread_row:
-            raw.append(("user", f"[{thread_row['author'] or 'anon'}] {thread_row['content']}"))
+            raw.append(
+                ("user", f"[{thread_row['author'] or 'anon'}] {thread_row['content']}")
+            )
         for row in post_rows:
             if row["is_agent"]:
                 raw.append(("assistant", row["content"]))
@@ -388,15 +453,30 @@ class AgentBB:
         except Exception as e:
             return f"Agent error: {e}"
 
-    def dispatch(self, post_id, prompt):
+    def dispatch(self, thread_id, post_id, prompt):
         def task():
             response = self.process(prompt)
             with sqlite3.connect(self.db_path) as conn:
                 conn.execute(
-                    'UPDATE posts SET content = ?, pending = 0 WHERE id = ?',
+                    "UPDATE posts SET content = ?, pending = 0 WHERE id = ?",
                     (response, post_id),
                 )
+
                 conn.commit()
+                
+                conn.execute(
+                    """INSERT OR IGNORE INTO notifications (user_id, post_id)
+                    SELECT DISTINCT author, ?
+                    FROM posts
+                    WHERE thread_id = ?
+                        AND is_agent = 0
+                        AND author is not NULL
+                    """,
+                    (post_id, thread_id),
+                )
+                
+                conn.commit()
+
         self.executor.submit(task)
 
     def recover_pending(self):
@@ -407,13 +487,13 @@ class AgentBB:
         conn.row_factory = sqlite3.Row
         try:
             rows = conn.execute(
-                'SELECT id, thread_id FROM posts WHERE pending = 1 ORDER BY id'
+                "SELECT id, thread_id FROM posts WHERE pending = 1 ORDER BY id"
             ).fetchall()
         finally:
             conn.close()
         for row in rows:
-            messages = self.thread_messages(row['thread_id'], before_post_id=row['id'])
-            self.dispatch(row['id'], messages)
+            messages = self.thread_messages(row["thread_id"], before_post_id=row["id"])
+            self.dispatch(row["thread_id"], row["id"], messages)
 
 
 agentbb = AgentBB(DATABASE, max_workers=AGENT_MAX_WORKERS)
@@ -422,6 +502,7 @@ agentbb = AgentBB(DATABASE, max_workers=AGENT_MAX_WORKERS)
 @forum.before_request
 def _recover_pending_once():
     agentbb.recover_pending()
+
 
 @forum.before_request
 def authenticate():
@@ -434,49 +515,64 @@ def authenticate():
 @app.context_processor
 def _inject_auth():
     user = session.get("user")
-    return dict(current_user=user, is_admin=user == "admin")
+    unread = 0
 
+    if user:
+        with get_db() as conn:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                "SELECT COUNT(*) AS c FROM notifications WHERE user_id = ?", (user,)
+            ).fetchone()
+            unread = row["c"] if row else 0
+
+    return dict(current_user=user, is_admin=user == "admin", unread_count=unread)
 
 
 class LoginView(MethodView):
     def get(self):
-        if request.endpoint == 'forum.logout':
-            session.pop('user', None)
-            return redirect(url_for('forum.index'))
-        next_url = request.args.get('next', '/')
-        if not (next_url.startswith('/') and not next_url.startswith('//')):
-            next_url = '/'
+        if request.endpoint == "forum.logout":
+            session.pop("user", None)
+            return redirect(url_for("forum.index"))
+        next_url = request.args.get("next", "/")
+        if not (next_url.startswith("/") and not next_url.startswith("//")):
+            next_url = "/"
         return render_template_string(LOGIN_HTML, next=next_url, error=None)
 
     def post(self):
-        username = request.form.get('username', '')
-        password = request.form.get('password', '')
-        next_url = request.form.get('next', '/')
-        if not (next_url.startswith('/') and not next_url.startswith('//')):
-            next_url = '/'
+        username = request.form.get("username", "")
+        password = request.form.get("password", "")
+        next_url = request.form.get("next", "/")
+        if not (next_url.startswith("/") and not next_url.startswith("//")):
+            next_url = "/"
         if USERS.get(username) == password:
-            session['user'] = username
+            session["user"] = username
             return redirect(next_url)
-        return render_template_string(LOGIN_HTML, next=next_url, error='Invalid credentials')
+        return render_template_string(
+            LOGIN_HTML, next=next_url, error="Invalid credentials"
+        )
 
 
 class BoardView(MethodView):
     def get(self):
-        if request.endpoint == 'forum.create':
+        if request.endpoint == "forum.create":
             return render_template_string(CREATE_HTML)
         page = 1
         with suppress(TypeError, ValueError):
-            page = int(request.args.get('page', 1))
+            page = int(request.args.get("page", 1))
         page = max(page, 1)
         offset = (page - 1) * PAGE_SIZE
-        rows = get_db().execute(
-            '''SELECT t.* FROM threads t
+        rows = (
+            get_db()
+            .execute(
+                """SELECT t.* FROM threads t
                LEFT JOIN posts p ON p.thread_id = t.id
                GROUP BY t.id
                ORDER BY MAX(p.id) DESC, t.id DESC
-               LIMIT ? OFFSET ?''',
-            (PAGE_SIZE + 1, offset),
-        ).fetchall()
+               LIMIT ? OFFSET ?""",
+                (PAGE_SIZE + 1, offset),
+            )
+            .fetchall()
+        )
         return render_template_string(
             INDEX_HTML,
             threads=rows[:PAGE_SIZE],
@@ -486,39 +582,55 @@ class BoardView(MethodView):
         )
 
     def post(self):
-        title = request.form['title']
-        content = request.form['content']
-        user = session['user']
+        title = request.form["title"]
+        content = request.form["content"]
+        user = session["user"]
         with sqlite3.connect(DATABASE) as conn:
             cursor = conn.cursor()
-            cursor.execute('INSERT INTO threads (title, content, author) VALUES (?, ?, ?)', (title, content, user))
+            cursor.execute(
+                "INSERT INTO threads (title, content, author) VALUES (?, ?, ?)",
+                (title, content, user),
+            )
             thread_id = cursor.lastrowid
             pending_id = None
-            if 'agent_thread' in request.form and user == 'admin':
+            if "agent_thread" in request.form and user == "admin":
                 cursor.execute(
-                    'INSERT INTO posts (thread_id, content, is_agent, pending, author) VALUES (?, ?, ?, ?, ?)',
+                    "INSERT INTO posts (thread_id, content, is_agent, pending, author) VALUES (?, ?, ?, ?, ?)",
                     (thread_id, "(Agent is thinking…)", 1, 1, None),
                 )
                 pending_id = cursor.lastrowid
+
             conn.commit()
         if pending_id is not None:
-            agentbb.dispatch(pending_id, content)
-        return redirect(url_for('forum.thread', thread_id=thread_id))
+            agentbb.dispatch(thread_id, pending_id, content)
+        return redirect(url_for("forum.thread", thread_id=thread_id))
 
 
 class ThreadView(MethodView):
     def get(self, thread_id):
         page = 1
         with suppress(TypeError, ValueError):
-            page = int(request.args.get('page', 1))
+            page = int(request.args.get("page", 1))
         page = max(page, 1)
         offset = (page - 1) * PAGE_SIZE
         db = get_db()
-        thread_data = db.execute('SELECT * FROM threads WHERE id = ?', (thread_id,)).fetchone()
+        thread_data = db.execute(
+            "SELECT * FROM threads WHERE id = ?", (thread_id,)
+        ).fetchone()
         rows = db.execute(
-            'SELECT * FROM posts WHERE thread_id = ? ORDER BY id LIMIT ? OFFSET ?',
+            "SELECT * FROM posts WHERE thread_id = ? ORDER BY id LIMIT ? OFFSET ?",
             (thread_id, PAGE_SIZE + 1, offset),
         ).fetchall()
+        post_ids = [p["id"] for p in rows[:PAGE_SIZE]]
+        if post_ids:
+            db.execute(
+                "DELETE FROM notifications WHERE user_id = ? AND post_id IN ({seq})".format(
+                    seq=", ".join('?' for _ in post_ids),
+                ),
+                [session["user"]] + post_ids
+            )
+            db.commit()
+
         return render_template_string(
             THREAD_HTML,
             thread=thread_data,
@@ -529,107 +641,182 @@ class ThreadView(MethodView):
         )
 
     def post(self, thread_id):
-        content = request.form['content']
-        user = session['user']
+        content = request.form["content"]
+        user = session["user"]
         pending_id = None
         with sqlite3.connect(DATABASE) as conn:
-            conn.execute(
-                'INSERT INTO posts (thread_id, content, is_agent, author) VALUES (?, ?, ?, ?)',
+            cursor = conn.execute(
+                "INSERT INTO posts (thread_id, content, is_agent, author) VALUES (?, ?, ?, ?)",
                 (thread_id, content, 0, user),
             )
-            if 'agent_reply' in request.form and user == 'admin':
+            new_post_id = cursor.lastrowid
+            
+            if "agent_reply" in request.form and user == "admin":
                 cursor = conn.execute(
-                    'INSERT INTO posts (thread_id, content, is_agent, pending, author) VALUES (?, ?, ?, ?, ?)',
+                    "INSERT INTO posts (thread_id, content, is_agent, pending, author) VALUES (?, ?, ?, ?, ?)",
                     (thread_id, "(Agent is thinking…)", 1, 1, None),
                 )
                 pending_id = cursor.lastrowid
-            conn.commit()
+
         if pending_id is not None:
             messages = agentbb.thread_messages(thread_id, before_post_id=pending_id)
-            agentbb.dispatch(pending_id, messages)
-        return redirect(url_for('forum.thread', thread_id=thread_id, page=request.args.get('page') or None))
+            agentbb.dispatch(thread_id, pending_id, messages)
+
+        conn.execute(
+            """INSERT OR IGNORE INTO notifications (user_id, post_id)
+            SELECT DISTINCT author, ?
+            FROM posts
+            WHERE thread_id = ?
+                AND author <> ?
+                AND is_agent = 0
+                AND author is not NULL
+            """,
+            (new_post_id, thread_id, user),
+        )
+
+        conn.commit()
+
+        return redirect(
+            url_for(
+                "forum.thread",
+                thread_id=thread_id,
+                page=request.args.get("page") or None,
+            )
+        )
 
 
 class EditView(MethodView):
     def get(self, thread_id, post_id=None):
         db = get_db()
-        user = session['user']
+        user = session["user"]
         if post_id is None:
-            thread = db.execute('SELECT * FROM threads WHERE id = ?', (thread_id,)).fetchone()
+            thread = db.execute(
+                "SELECT * FROM threads WHERE id = ?", (thread_id,)
+            ).fetchone()
             if thread is None:
-                return ('Thread not found', 404)
-            if user != thread['author'] and user != 'admin':
-                return ('Not allowed', 403)
+                return ("Thread not found", 404)
+            if user != thread["author"] and user != "admin":
+                return ("Not allowed", 403)
             return render_template_string(EDIT_THREAD_HTML, thread=thread)
         post = db.execute(
-            'SELECT * FROM posts WHERE id = ? AND thread_id = ?',
+            "SELECT * FROM posts WHERE id = ? AND thread_id = ?",
             (post_id, thread_id),
         ).fetchone()
-        if post is None or post['is_agent'] or post['pending']:
-            return ('Cannot edit this post', 404)
-        if user != post['author'] and user != 'admin':
-            return ('Not allowed', 403)
+        if post is None or post["is_agent"] or post["pending"]:
+            return ("Cannot edit this post", 404)
+        if user != post["author"] and user != "admin":
+            return ("Not allowed", 403)
         return render_template_string(EDIT_HTML, thread_id=thread_id, post=post)
 
     def post(self, thread_id, post_id=None):
         db = get_db()
-        user = session['user']
+        user = session["user"]
         if post_id is None:
-            thread = db.execute('SELECT * FROM threads WHERE id = ?', (thread_id,)).fetchone()
+            thread = db.execute(
+                "SELECT * FROM threads WHERE id = ?", (thread_id,)
+            ).fetchone()
             if thread is None:
-                return ('Thread not found', 404)
-            if user != thread['author'] and user != 'admin':
-                return ('Not allowed', 403)
-            new_title = request.form['title']
-            new_content = request.form['content']
-            content_changed = new_content != thread['content']
+                return ("Thread not found", 404)
+            if user != thread["author"] and user != "admin":
+                return ("Not allowed", 403)
+            new_title = request.form["title"]
+            new_content = request.form["content"]
+            content_changed = new_content != thread["content"]
             pending_id = None
             with sqlite3.connect(DATABASE) as conn:
                 conn.execute(
-                    'UPDATE threads SET title = ?, content = ? WHERE id = ?',
+                    "UPDATE threads SET title = ?, content = ? WHERE id = ?",
                     (new_title, new_content, thread_id),
                 )
                 if content_changed:
-                    conn.execute('DELETE FROM posts WHERE thread_id = ?', (thread_id,))
+                    conn.execute("DELETE FROM posts WHERE thread_id = ?", (thread_id,))
                     cursor = conn.execute(
-                        'INSERT INTO posts (thread_id, content, is_agent, pending) VALUES (?, ?, ?, ?)',
+                        "INSERT INTO posts (thread_id, content, is_agent, pending) VALUES (?, ?, ?, ?)",
                         (thread_id, "(Agent is thinking…)", 1, 1),
                     )
                     pending_id = cursor.lastrowid
                 conn.commit()
             if pending_id is not None:
                 messages = agentbb.thread_messages(thread_id, before_post_id=pending_id)
-                agentbb.dispatch(pending_id, messages)
-            return redirect(url_for('forum.thread', thread_id=thread_id, page=request.args.get('page') or None))
+                agentbb.dispatch(thread_id, pending_id, messages)
+            return redirect(
+                url_for(
+                    "forum.thread",
+                    thread_id=thread_id,
+                    page=request.args.get("page") or None,
+                )
+            )
 
         post = db.execute(
-            'SELECT * FROM posts WHERE id = ? AND thread_id = ?',
+            "SELECT * FROM posts WHERE id = ? AND thread_id = ?",
             (post_id, thread_id),
         ).fetchone()
-        if post is None or post['is_agent'] or post['pending']:
-            return ('Cannot edit this post', 404)
-        if user != post['author'] and user != 'admin':
-            return ('Not allowed', 403)
-        new_content = request.form['content']
+        if post is None or post["is_agent"] or post["pending"]:
+            return ("Cannot edit this post", 404)
+        if user != post["author"] and user != "admin":
+            return ("Not allowed", 403)
+        new_content = request.form["content"]
         with sqlite3.connect(DATABASE) as conn:
-            conn.execute('UPDATE posts SET content = ? WHERE id = ?', (new_content, post_id))
-            conn.execute('DELETE FROM posts WHERE thread_id = ? AND id > ?', (thread_id, post_id))
+            conn.execute(
+                "UPDATE posts SET content = ? WHERE id = ?", (new_content, post_id)
+            )
+            conn.execute(
+                "DELETE FROM posts WHERE thread_id = ? AND id > ?", (thread_id, post_id)
+            )
             cursor = conn.execute(
-                'INSERT INTO posts (thread_id, content, is_agent, pending) VALUES (?, ?, ?, ?)',
+                "INSERT INTO posts (thread_id, content, is_agent, pending) VALUES (?, ?, ?, ?)",
                 (thread_id, "(Agent is thinking…)", 1, 1),
             )
             pending_id = cursor.lastrowid
             conn.commit()
         messages = agentbb.thread_messages(thread_id, before_post_id=pending_id)
-        agentbb.dispatch(pending_id, messages)
-        return redirect(url_for('forum.thread', thread_id=thread_id, page=request.args.get('page') or None))
+        agentbb.dispatch(thread_id, pending_id, messages)
+        return redirect(
+            url_for(
+                "forum.thread",
+                thread_id=thread_id,
+                page=request.args.get("page") or None,
+            )
+        )
 
 
-forum.add_url_rule("/login", view_func=LoginView.as_view("login"), methods=["GET", "POST"])
+class NotificationView(MethodView):
+
+    def get(self):
+        user = session["user"]
+        if not user:
+            return redirect(url_for("forum.login"))
+
+        with get_db() as conn:
+            rows = conn.execute(
+                """
+                SELECT * FROM posts
+                WHERE id IN (
+                    SELECT post_id
+                    FROM notifications
+                    WHERE user_id = ?
+                ) ORDER BY id
+                DESC
+                """,
+                (user,)
+            ).fetchall()
+
+            return render_template_string(NOTIFICATIONS_HTML, rows=rows)
+
+    
+forum.add_url_rule(
+    "/login", view_func=LoginView.as_view("login"), methods=["GET", "POST"]
+)
 forum.add_url_rule("/logout", view_func=LoginView.as_view("logout"), methods=["GET"])
 forum.add_url_rule("/", view_func=BoardView.as_view("index"), methods=["GET"])
-forum.add_url_rule("/create", view_func=BoardView.as_view("create"), methods=["GET", "POST"])
-forum.add_url_rule("/thread/<int:thread_id>", view_func=ThreadView.as_view("thread"), methods=["GET", "POST"])
+forum.add_url_rule(
+    "/create", view_func=BoardView.as_view("create"), methods=["GET", "POST"]
+)
+forum.add_url_rule(
+    "/thread/<int:thread_id>",
+    view_func=ThreadView.as_view("thread"),
+    methods=["GET", "POST"],
+)
 forum.add_url_rule(
     "/thread/<int:thread_id>/edit",
     view_func=EditView.as_view("edit_thread"),
@@ -641,10 +828,11 @@ forum.add_url_rule(
     view_func=EditView.as_view("edit_post"),
     methods=["GET", "POST"],
 )
+forum.add_url_rule("/notifications", view_func=NotificationView.as_view("notifications"), methods=["GET"])
 
 app.register_blueprint(forum)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     init_db()
     app.run(debug=True)
